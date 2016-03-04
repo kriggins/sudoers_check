@@ -5,7 +5,8 @@
 -f FILE --file=FILE     specifiy input file [default: /etc/sudoers]
 --quiet                 suppress output
 --verbose               print results to stdout
--o FILE --output=FILE   output results to FILE [default: ./check_sudoers_resutls.out]
+-o FILE --output=FILE   output results to FILE
+                        [default: ./check_sudoers_results.out]
 
 """
 
@@ -31,9 +32,12 @@ def get_file(filename):
             line = line.strip()
             if line.startswith('#'):
                 continue
-            if line == '':
+            if not line:
                 continue
-            file.append(line)
+            if file and file[-1].endswith("\\"):
+                file[-1] = file[-1][:-1] + " " + line
+            else:
+                file.append(line)
 
     return(file)
 
@@ -47,19 +51,24 @@ def basic_checks(sudoers_file):
     """
     for line in range(len(sudoers_file)):
         # check for (ALL)=ALL errors
-        match = re.search(r'all *= *\(all\) .ALL', sudoers_file[line], re.IGNORECASE)
+        match = re.search(r'all *= *\(all\) .ALL', sudoers_file[line],
+                          re.IGNORECASE)
         if match:
-            print("The line: ",sudoers_file[line]," possibly contains a vunlerability.")
-            print("Vulnerability: ALL=(ALL) ALL found. This allows the designated user or group to")
-            print("execute any command on the system as root.")
+            print("The line: ",sudoers_file[line]," possibly contains")
+            print("a vunlerability.")
+            print("Vulnerability: ALL=(ALL) ALL found. This allows the")
+            print("designated user or group to execute any command on the")
+            print("system as root.")
             print()
 
         # check for (ALL)=ALL NOPASSWD errors
         match = re.search(r'NOPASSWD: *ALL', sudoers_file[line], re.IGNORECASE)
         if match:
-            print("The line:",sudoers_file[line], "possibly contains a vunlerability.")
-            print("Vunlerability: 'NOPASSWD: ALL found'. This allows the designated user to")
-            print("execute any command without providing credentials.")
+            print("The line:",sudoers_file[line], "possibly contains a")
+            print("vunlerability.")
+            print("Vunlerability: 'NOPASSWD: ALL found'. This allows the")
+            print("designated user to execute any command without providing")
+            print("credentials.")
             print()
 
 def parse_commands(sudoers_file):
@@ -80,15 +89,10 @@ def parse_commands(sudoers_file):
             continue
         if cur_line.startswith('Cmnd'):
             print(cur_line)
-
-            commands = cur_line.split('=')[1].split(',')
+            seperator_index = cur_line.find('=') + 1
+            commands = cur_line[seperator_index:-1].split(',')
+            commands = [c.strip() for c in commands]
             print(commands)
-
-            if cur_line.endswith('\\'):
-                for x in range(line+1,len(sudoers_file)):
-                    print(sudoers_file[x])
-                    if not sudoers_file[x].endswith('\\'):
-                        break
 
 try:
     sudoers_file = get_file(arguments['--file'])
